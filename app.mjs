@@ -40,7 +40,7 @@ app.get("/register",(req,res)=>{
   res.render("register1",{});
 })
 app.get("/login",(req,res)=>{
-  res.render("login");
+  res.render("login1");
 });
 var f_name, l_name, dob, age, gender
 app.post('/register1', async (req, res) => {
@@ -93,7 +93,7 @@ app.post('/register3', async (req, res) => {
       } else {
         console.log('User created successfully!');
         // res.status(200).send('User created successfully!');
-        res.render("login");
+        res.render("login1");
       }
     });
   }
@@ -104,10 +104,10 @@ app.post('/register3', async (req, res) => {
   }
 });
 
-var user, pass
+var user_id, password;
 app.post('/login', async (req, res) => {
-  const user_id = req.body.username;
-  const password = req.body.password;
+user_id = req.body.username;
+password = req.body.password;
   
   // Retrieve the hashed password value from the database based on the entered user ID.
   const query = 'SELECT user_pass FROM user_register WHERE user_id = ?';

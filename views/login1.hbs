@@ -46,7 +46,12 @@ input[type=radio] {
                                 <label for="Password" class="text-info">Password</label><br>
                                 <input type="password" name="password" id="password" class="form-control" required autofocus>
                             </div>
-                           
+                           <div>
+                            {{#if msg}}
+                              <p style="color: red;font:100">*UserName or Passwords don't match</p>
+                              <p><a href='/register'>Want to register?</p></a>
+                            {{/if}}   
+                           </div>
                                 <h3></h3>
                                 <br>
                                 <button name="next" class="btn btn-info btn-md">NEXT</button>

@@ -105,11 +105,10 @@ app.post('/register3', async (req, res) => {
 });
 
 var user_id, password;
-app.post('/login', async (req, res) => {
+app.post('/newuser', async (req, res) => {
 user_id = req.body.username;
 password = req.body.password;
-  
-  // Retrieve the hashed password value from the database based on the entered user ID.
+// Retrieve the hashed password value from the database based on the entered user ID.
   const query = 'SELECT user_pass FROM user_register WHERE user_id = ?';
   pool.query(query, [user_id], async (error, results, fields) => {
     if (error) {
@@ -124,7 +123,7 @@ password = req.body.password;
         
         if (isMatch) {
           console.log('Login Success!');
-          res.status(200).send('Login Successful!');
+          res.sendFile(path.join(__dirname+'/views/index.html'));
         } else {
           console.log('Incorrect Password!');
           res.status(401).send('Incorrect Password!');

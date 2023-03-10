@@ -126,7 +126,7 @@ password = req.body.password;
           res.sendFile(path.join(__dirname+'/views/index.html'));
         } else {
           console.log('Incorrect Password!');
-          res.status(401).send('Incorrect Password!');
+          res.render("login1",{msg:true});
         }
       } else {
         console.log('User not found!');

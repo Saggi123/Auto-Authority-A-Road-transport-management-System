@@ -99,7 +99,7 @@ app.post('/register3', async (req, res) => {
   }
   else{
     console.log('Passwords Do Not Match!');
-    res.render("register3", { error: "Passwords do not match", highlight: true });
+    res.render("register3",{msg:true});
     return false;
   }
 });
@@ -130,7 +130,7 @@ password = req.body.password;
         }
       } else {
         console.log('User not found!');
-        res.status(404).send('User not found!');
+        res.render("login1",{msg:true});
       }
     }
   });

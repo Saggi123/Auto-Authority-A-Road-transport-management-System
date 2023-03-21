@@ -1,24 +1,37 @@
+//imports
 import express from 'express';
 import bcrypt from 'bcrypt';
 import mysql from 'mysql';
 import path from 'path';
 import url from "url";
 import session from 'express-session';
+import cookieParser from 'cookie-parser';
+import bodyParser from 'body-parser';
 
 // Create an Express app
 const app = express();
+
 const __filename = url.fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import bodyParser from 'body-parser';
-
+const oneDay = 1000 * 60 * 60 * 24;
 
 app.use(session({
-  secret: 'AutoAuthority2023',
-  resave: true,
-  saveUninitialized: true
+  secret: "thisismysecrctekeyfhrgfgrfrty84fwir767",
+  saveUninitialized:true,
+  cookie: { maxAge: oneDay },
+  resave: false 
 }));
+app.use(cookieParser());
+var Session;
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+ //Disable browser Cache Memory
+ app.use(function(req, res, next) {
+  res.set('Cache-Control', 'no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0');
+  next();
+});
 
 // Create a MySQL connection pool
 const pool = mysql.createPool({
@@ -38,17 +51,16 @@ app.use(express.json());
 // Serve static files from the public directory
 app.use(express.static('public'));
 
-app.use(function(req, res, next) {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  next();
-});
+// app.use(function(req, res, next) {
+//   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+//   res.setHeader('Pragma', 'no-cache');
+//   res.setHeader('Expires', '0');
+//   next();
+// });
 
 console.log(__dirname);
 // Render the index page
 app.get("/", (req, res) => {
-     
   res.render("index");
 });
 app.get("/register",(req,res)=>{
@@ -57,6 +69,10 @@ app.get("/register",(req,res)=>{
 app.get("/login",(req,res)=>{
   res.render("login1");
 });
+
+app.get("/rto_login", (req,res) => {
+  res.render("rto_login");
+})
 var f_name, l_name, dob, age, gender
 app.post('/register1', async (req, res) => {
   f_name = req.body.fname
@@ -93,7 +109,6 @@ app.post('/register2', async (req, res) => {
 });
 
 var user_id, password, c_password, hash
-//var salt = bcrypt.genSaltSync(12)
 app.post('/register3', async (req, res) => {
   user_id = req.body.userid
   password = req.body.password
@@ -119,14 +134,15 @@ app.post('/register3', async (req, res) => {
   }
 });
 
-const validateSession = (req, res, next) => {
-  if (req.session.user) {
-    next();
-  } else {
-    res.redirect('/login');
-  }
-}
+// const validateSession = (req, res, next) => {
+//   if (req.session.user) {
+//     next();
+//   } else {
+//     res.redirect('/login');
+//   }
+// }
 // var user_id, password;
+var data;
 app.post('/login', async (req, res) => {
   const user_id = req.body.username;
   const password = req.body.password;
@@ -143,7 +159,10 @@ app.post('/login', async (req, res) => {
         const storedPassword = results[0].user_pass;
         // Use the retrieved hashed password value and the entered plaintext password to compare them using the bcrypt.compare function.
         const isMatch = await bcrypt.compare(password, storedPassword);
-        if (isMatch) {
+        Session = req.session;
+        Session.userid = req.body.username;
+        Session.pass = req.body.password;
+        if (isMatch && Session.userid) {
           req.session.user = user_id;
           req.session.save();
           console.log('Login Success!');
@@ -178,7 +197,6 @@ app.post('/login', async (req, res) => {
             const newDate2 = new Date(`${month2}/${day2}/${year2}`);
         
             // Calculate difference in days
-            const oneDay = 1000 * 60 * 60 * 24;
             const diffInTime = newDate2.getTime() - newDate1.getTime();
             const diffInDays = Math.round(diffInTime / oneDay);
             return diffInDays;
@@ -187,24 +205,34 @@ app.post('/login', async (req, res) => {
           const noOfDays = getNumberOfDays(currentDate, formattedDate);
           let displayMarquee = false;
           let expired = false;
-          if (noOfDays <= 30 && noOfDays >= 1) {
-            displayMarquee = true;
-          }
-          else if(noOfDays < 1){
-            displayMarquee = true;
-            expired = true;
-          }
-          res.render("index1", {noOfDays: noOfDays, user_id: user_id, displayMarquee: displayMarquee, expired: expired});
-          
+          const name = 'SELECT f_name,l_name FROM user_register where user_id = ?';
+          pool.query(name, [user_id], async (error, results1, fields) => {
+            data = JSON.parse(JSON.stringify(results1));
+            console.log(data);
+            console.log(Session);
+            if(req.session)
+            {
+              if (noOfDays <= 30 && noOfDays >= 1) {
+                displayMarquee = true;
+              }
+              else if(noOfDays < 1){
+                displayMarquee = true;
+                expired = true;
+              }
+              res.render("index1", {noOfDays: noOfDays, displayMarquee: displayMarquee, expired: expired, fname:data[0].f_name, lname:data[0].l_name});
+            }
+            else
+              res.redirect('/');
+          });
+        }
+        else if(Session.userid == ""){
+          res.send("Error");
         }
       }
     })
   });
 });
-// Protected route that requires valid user session
-app.get('/protected', validateSession, (req, res) => {
-  console.log('This route requires a valid user session');
-});
+
 
 // Check if session is active before rendering index1 page
 app.get('/logout', (req, res) => {
@@ -212,7 +240,9 @@ app.get('/logout', (req, res) => {
     if (err) {
       console.log(err);
     } else {
-      res.clearCookie('session-id');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', 0);
       res.render('index');
     }
   });

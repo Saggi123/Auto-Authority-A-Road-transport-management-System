@@ -10,8 +10,6 @@ const app = express();
 const __filename = url.fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import bodyParser from 'body-parser';
-import cookieParser from 'cookie-parser';
-import { diff } from 'semver';
 
 
 app.use(session({
@@ -135,7 +133,7 @@ app.post('/login', async (req, res) => {
   // Retrieve the hashed password value from the database based on the entered user ID.
   const query = 'SELECT user_pass FROM user_register WHERE user_id = ?';
   const query2 = 'SELECT validity from user_license WHERE user_id = ?';
-  
+
   pool.query(query, [user_id], async (error, results, fields) => {
     if (error) {
       console.error('Error while retrieving user password:', error);
@@ -202,21 +200,6 @@ app.post('/login', async (req, res) => {
       }
     })
   });
-  // pool.query(query2, [user_id], async (error, results, fields) =>{
-  //   if(error){
-  //     console.error('Cannot fetch Date: ', error);
-  //     res.status(500).send('Internal Server Error');
-  //   }
-  //   else {
-  //     if (results.length > 0) {
-  //       const date = results[0].validity;
-  //       res.render('index1', {date : date});
-  //     } else {
-  //       console.log('User not found!');
-  //       res.render("login1", { msg: true });
-  //     }
-  //   }
-  // });
 });
 // Protected route that requires valid user session
 app.get('/protected', validateSession, (req, res) => {
@@ -234,27 +217,6 @@ app.get('/logout', (req, res) => {
     }
   });
 });
-
-// app.get("/index1", (req, res) => {
-//   if (!req.session.user) {
-//     res.redirect('login1');
-//     return;
-//   }
-//   res.render("/");
-// });
-
-// // Logout route
-// app.get("/logout", (req, res) => {
-//   // Destroy the session
-//   req.session.destroy(err => {
-//     if (err) {
-//       console.error(err);
-//       res.status(500).send('Internal Server Error');
-//     } else {
-//       res.redirect('/');
-//     }
-//   });
-// });
 
 // Start the server
 app.listen(3004, () => {

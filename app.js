@@ -143,6 +143,9 @@ app.post('/register3', async (req, res) => {
 // }
 // var user_id, password;
 var data;
+var noOfDays;
+var displayMarquee;
+var expired;
 app.post('/login', async (req, res) => {
   const user_id = req.body.username;
   const password = req.body.password;
@@ -163,6 +166,7 @@ app.post('/login', async (req, res) => {
         Session.userid = req.body.username;
         Session.pass = req.body.password;
         if (isMatch && Session.userid) {
+          req.session.loggedin = true;
           req.session.user = user_id;
           req.session.save();
           console.log('Login Success!');
@@ -202,9 +206,9 @@ app.post('/login', async (req, res) => {
             return diffInDays;
         }
           
-          const noOfDays = getNumberOfDays(currentDate, formattedDate);
-          let displayMarquee = false;
-          let expired = false;
+          noOfDays = getNumberOfDays(currentDate, formattedDate);
+          displayMarquee = false;
+          expired = false;
           const name = 'SELECT f_name,l_name FROM user_register where user_id = ?';
           pool.query(name, [user_id], async (error, results1, fields) => {
             data = JSON.parse(JSON.stringify(results1));
@@ -219,7 +223,7 @@ app.post('/login', async (req, res) => {
                 displayMarquee = true;
                 expired = true;
               }
-              res.render("index1", {noOfDays: noOfDays, displayMarquee: displayMarquee, expired: expired, fname:data[0].f_name, lname:data[0].l_name});
+              res.redirect('/dashboard');
             }
             else
               res.redirect('/');
@@ -231,6 +235,20 @@ app.post('/login', async (req, res) => {
       }
     })
   });
+});
+app.get('/dashboard', async(req, res) => {
+  if(req.session.loggedin){
+    try{
+      res.render("index1", {noOfDays: noOfDays, displayMarquee: displayMarquee, expired: expired, fname:data[0].f_name, lname:data[0].l_name});
+    }
+    catch(error){
+      console.error(error);
+      res.status(500).send(error.message);
+    }
+  }
+  else{
+    return res.send("Please Login to view this page! <a href='/'>Login Here</a>");
+  }
 });
 
 

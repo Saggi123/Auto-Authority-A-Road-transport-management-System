@@ -51,13 +51,6 @@ app.use(express.json());
 // Serve static files from the public directory
 app.use(express.static('public'));
 
-// app.use(function(req, res, next) {
-//   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-//   res.setHeader('Pragma', 'no-cache');
-//   res.setHeader('Expires', '0');
-//   next();
-// });
-
 console.log(__dirname);
 // Render the index page
 app.get("/", (req, res) => {
@@ -73,6 +66,11 @@ app.get("/login",(req,res)=>{
 app.get("/rto_login", (req,res) => {
   res.render("rto_login");
 })
+
+app.get("/rto_index", (req,res) =>{
+  res.render("rto_index" , {msg: true});
+})
+
 var f_name, l_name, dob, age, gender
 app.post('/register1', async (req, res) => {
   f_name = req.body.fname
@@ -134,18 +132,61 @@ app.post('/register3', async (req, res) => {
   }
 });
 
-// const validateSession = (req, res, next) => {
-//   if (req.session.user) {
-//     next();
-//   } else {
-//     res.redirect('/login');
-//   }
-// }
-// var user_id, password;
+
 var data;
 var noOfDays;
 var displayMarquee;
 var expired;
+
+//login route for rto officer
+app.post('/rto_login', async(req, res) =>{
+  const rto_id = req.body.username;
+  const rto_pass = req.body.password;
+
+  // retrieve the password from database for the entered rto_id
+  const query = 'SELECT rto_pass FROM rto_login WHERE rto_id = ?';
+
+  pool.query(query, [rto_id], async (error, results, fields) =>{
+    if(error){
+      console.error('Error while retrieving user password:', error);
+      res.status(500).send('Internal Server Error');
+    }else{
+      if(results.length > 0){
+        const pass = results[0].rto_pass;
+        console.log(pass);
+        Session = req.session;
+        Session.rtoid = req.body.username;
+        Session.rtopass = req.body.password;
+        if(rto_pass == pass && Session.rtoid){
+          req.session.loggedin = true;
+          req.session.user = rto_id;
+          req.session.save();
+          console.log("Login Success!");
+        }
+        else{
+          res.render("rto_login", { msg: true });
+        }
+      }else{
+        console.log('User not found!');
+        res.render("rto_login", { msg: true });
+      }
+    }
+    const name = 'SELECT f_name,l_name FROM rto_login where rto_id = ?';
+          pool.query(name, [rto_id], async (error, results1, fields) => {
+            data = JSON.parse(JSON.stringify(results1));
+            console.log(data);
+            console.log(Session);
+            if(req.session)
+            {
+              res.redirect('/rto_dashboard');
+            }
+            else
+              res.redirect('/');
+          });
+  })
+});
+
+//login route for vehicle owner
 app.post('/login', async (req, res) => {
   const user_id = req.body.username;
   const password = req.body.password;
@@ -170,8 +211,6 @@ app.post('/login', async (req, res) => {
           req.session.user = user_id;
           req.session.save();
           console.log('Login Success!');
-          // res.redirect('/index1', {});
-          // res.render("index1", {user_id: user_id});
         } else {
           console.log('Incorrect Password!');
           res.render("login1", { msg: true });
@@ -236,6 +275,38 @@ app.post('/login', async (req, res) => {
     })
   });
 });
+
+
+//rto dashboard session
+app.get('/rto_dashboard', async(req, res) =>{
+  if(req.session.loggedin){
+    try{
+      res.render("rto_index", {fname:data[0].f_name, lname:data[0].l_name});
+    }
+    catch(error){
+      res.status(500).send(error.message);
+    }
+  }
+  else{
+    return res.send("Please Login to view this page! <a href='/'>Login Here</a>");
+  }
+  
+});
+
+//rto logout route
+app.get('/rto_logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.log(err);
+    } else {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', 0);
+      res.render('index');
+    }
+  });
+});
+
 app.get('/dashboard', async(req, res) => {
   if(req.session.loggedin){
     try{
@@ -250,7 +321,6 @@ app.get('/dashboard', async(req, res) => {
     return res.send("Please Login to view this page! <a href='/'>Login Here</a>");
   }
 });
-
 
 // Check if session is active before rendering index1 page
 app.get('/logout', (req, res) => {

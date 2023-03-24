@@ -273,21 +273,29 @@
                             <div class="row justify-content-center">
                                 <div class="col-lg-8">
                                     <!-- Portfolio Modal - Title-->
-                                    <h2 class="portfolio-modal-title text-secondary text-uppercase mb-0">Log Cabin</h2>
+                                    <h2 class="portfolio-modal-title text-secondary text-uppercase mb-0">License Details</h2>
                                     <!-- Icon Divider-->
                                     <div class="divider-custom">
                                         <div class="divider-custom-line"></div>
                                         <div class="divider-custom-icon"><i class="fas fa-star"></i></div>
                                         <div class="divider-custom-line"></div>
                                     </div>
-                                    <!-- Portfolio Modal - Image-->
-                                    <img class="img-fluid rounded mb-5" src="assets/img/portfolio/cabin.png" alt="..." />
+                                    <!-- License details fetched from database-->
+                                    <div>
+                                        <h1 class="masthead-heading text-uppercase mb-0">License No: {{license}}</h1>
+                                        <h3 class="masthead-heading text-uppercase mb-0">Name: {{fname}} {{lname}}</h3>
+                                        <h3 class="masthead-heading text-uppercase mb-0">DOB: {{dob}} &nbsp; Gender: {{gender}}</h3>
+                                        <h3 class="masthead-heading text-uppercase mb-0">License Validity: {{validity}}</h3>
+                                        <h3 class="masthead-heading text-uppercase mb-0">Address: {{address}}</h3>
+
+                                    </div>
                                     <!-- Portfolio Modal - Text-->
-                                    <p class="mb-4">Lorem ipsum dolor sit amet, consectetur adipisicing elit. Mollitia neque assumenda ipsam nihil, molestias magnam, recusandae quos quis inventore quisquam velit asperiores, vitae? Reprehenderit soluta, eos quod consequuntur itaque. Nam.</p>
-                                    <button class="btn btn-primary" data-bs-dismiss="modal">
-                                        <i class="fas fa-xmark fa-fw"></i>
-                                        Close Window
-                                    </button>
+                                    <form>
+                                        <button class="btn btn-primary" data-bs-dismiss="modal">
+                                            Renew License
+                                        </button>
+                                    </form>
+                                    
                                 </div>
                             </div>
                         </div>

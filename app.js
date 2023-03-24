@@ -71,7 +71,7 @@ app.get("/rto_index", (req,res) =>{
   res.render("rto_index" , {msg: true});
 })
 
-var f_name, l_name, dob, age, gender
+var f_name, l_name, dob, age, gender, formattedDate1, formattedDate2
 app.post('/register1', async (req, res) => {
   f_name = req.body.fname
   l_name = req.body.lname
@@ -80,8 +80,8 @@ app.post('/register1', async (req, res) => {
 
   //calculating age from dob
   var tempDate = new Date(dob);
-  var formattedDate = [tempDate.getDate(), tempDate.getMonth() + 1, tempDate.getFullYear()].join('/');
-  const dobParts = formattedDate.split("/");
+  formattedDate2 = [tempDate.getDate(), tempDate.getMonth() + 1, tempDate.getFullYear()].join('/');
+  const dobParts = formattedDate2.split("/");
   const dobDay = parseInt(dobParts[0], 10);
   const dobMonth = parseInt(dobParts[1], 10) - 1; // Note: months are 0-indexed in JavaScript
   const dobYear = parseInt(dobParts[2], 10);
@@ -134,6 +134,7 @@ app.post('/register3', async (req, res) => {
 
 
 var data;
+var data2;
 var noOfDays;
 var displayMarquee;
 var expired;
@@ -174,8 +175,8 @@ app.post('/rto_login', async(req, res) =>{
     const name = 'SELECT f_name,l_name FROM rto_login where rto_id = ?';
           pool.query(name, [rto_id], async (error, results1, fields) => {
             data = JSON.parse(JSON.stringify(results1));
-            console.log(data);
-            console.log(Session);
+            // console.log(data);
+            // console.log(Session);
             if(req.session)
             {
               res.redirect('/rto_dashboard');
@@ -193,7 +194,7 @@ app.post('/login', async (req, res) => {
   // Retrieve the hashed password value from the database based on the entered user ID.
   const query = 'SELECT user_pass FROM user_register WHERE user_id = ?';
   const query2 = 'SELECT validity from user_license WHERE user_id = ?';
-
+  const query3 = 'SELECT license, address_p, dob, gender FROM user_register INNER JOIN user_license ON user_register.user_id = user_license.user_id WHERE user_register.user_id = ?';
   pool.query(query, [user_id], async (error, results, fields) => {
     if (error) {
       console.error('Error while retrieving user password:', error);
@@ -229,7 +230,7 @@ app.post('/login', async (req, res) => {
       else{
         if(results.length == 1){
           date = results[0].validity;
-          const formattedDate = date.toLocaleDateString('en-GB');
+          formattedDate1 = date.toLocaleDateString('en-GB');
           var currentDate = new Date();
           currentDate = currentDate.toLocaleDateString('en-GB');
           function getNumberOfDays(date1, date2) {
@@ -245,14 +246,12 @@ app.post('/login', async (req, res) => {
             return diffInDays;
         }
           
-          noOfDays = getNumberOfDays(currentDate, formattedDate);
+          noOfDays = getNumberOfDays(currentDate, formattedDate1);
           displayMarquee = false;
           expired = false;
           const name = 'SELECT f_name,l_name FROM user_register where user_id = ?';
           pool.query(name, [user_id], async (error, results1, fields) => {
             data = JSON.parse(JSON.stringify(results1));
-            console.log(data);
-            console.log(Session);
             if(req.session)
             {
               if (noOfDays <= 30 && noOfDays >= 1) {
@@ -262,7 +261,24 @@ app.post('/login', async (req, res) => {
                 displayMarquee = true;
                 expired = true;
               }
-              res.redirect('/dashboard');
+              pool.query(query3, [user_id], async(error, results2, fields)=>{
+                data2 = JSON.parse(JSON.stringify(results2));
+                function formatDate(dateString) {
+                  const date = new Date(dateString);
+                  const day = date.getUTCDate().toString().padStart(2, '0'); // get day as string with leading zero if needed
+                  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0'); // get month as string with leading zero if needed (month is zero-indexed)
+                  const year = date.getUTCFullYear().toString(); // get year as string
+                  return `${day}/${month}/${year}`;
+                }
+                data2[0].dob = formatDate(data2[0].dob);
+                
+                if(req.session){
+                  res.redirect('/dashboard');
+                }
+                else{
+                  res.redirect('/');
+                }
+              })
             }
             else
               res.redirect('/');
@@ -272,6 +288,7 @@ app.post('/login', async (req, res) => {
           res.send("Error");
         }
       }
+      
     })
   });
 });
@@ -311,7 +328,7 @@ app.get('/rto_logout', (req, res) => {
 app.get('/dashboard', async(req, res) => {
   if(req.session.loggedin){
     try{
-      res.render("index1", {noOfDays: noOfDays, displayMarquee: displayMarquee, expired: expired, fname:data[0].f_name, lname:data[0].l_name});
+      res.render("index1", {noOfDays: noOfDays, displayMarquee: displayMarquee, expired: expired, fname:data[0].f_name, lname:data[0].l_name, validity: formattedDate1, license:data2[0].license, gender:data2[0].gender, dob:data2[0].dob, address:data2[0].address_p});
     }
     catch(error){
       console.error(error);

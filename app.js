@@ -288,7 +288,8 @@ app.get('/rto_dashboard', async(req, res) =>{
     }
   }
   else{
-    return res.send("Please Login to view this page! <a href='/'>Login Here</a>");
+    res.redirect('/');
+    // res.render('index_after_logout');
   }
   
 });
@@ -318,7 +319,8 @@ app.get('/dashboard', async(req, res) => {
     }
   }
   else{
-    return res.send("Please Login to view this page! <a href='/'>Login Here</a>");
+    // return res.send("Please Login to view this page! <a href='/'>Login Here</a>");
+    res.redirect('/');
   }
 });
 

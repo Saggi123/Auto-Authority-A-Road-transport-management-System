@@ -56,6 +56,10 @@ console.log(__dirname);
 app.get("/", (req, res) => {
   res.render("index");
 });
+app.get('/fine', (req, res) =>{
+  res.render('fines', {});
+})
+
 app.get("/register",(req,res)=>{
   res.render("register1",{});
 })
@@ -139,6 +143,26 @@ var noOfDays;
 var displayMarquee;
 var expired;
 
+// impose fines route for RTO officer
+app.post('/fine', async(req, res) =>{
+  const vehicle = req.body.regno;
+  const fine = req.body.fineid;
+  const doi = req.body.doi;
+
+  const query = 'INSERT INTO impose_fine (veh_reg_no, fine_id, doi) VALUES (?,?,?)';
+
+  pool.query(query, [vehicle, fine, doi], (error, results, fields) => {
+    if (error) {
+      console.error('Failed to Add Fine:', error);
+      res.status(500).send('Failed to Add Fine');
+    } else {
+      console.log('Fine Added Successfully!');
+      res.redirect("rto_index");
+    }
+  })
+  
+});
+
 //login route for rto officer
 app.post('/rto_login', async(req, res) =>{
   const rto_id = req.body.username;
@@ -154,7 +178,6 @@ app.post('/rto_login', async(req, res) =>{
     }else{
       if(results.length > 0){
         const pass = results[0].rto_pass;
-        console.log(pass);
         Session = req.session;
         Session.rtoid = req.body.username;
         Session.rtopass = req.body.password;
@@ -192,16 +215,16 @@ app.post('/login', async (req, res) => {
   const user_id = req.body.username;
   const password = req.body.password;
   // Retrieve the hashed password value from the database based on the entered user ID.
-  const query = 'SELECT user_pass FROM user_register WHERE user_id = ?';
-  const query2 = 'SELECT validity from user_license WHERE user_id = ?';
-  const query3 = 'SELECT license, address_p, dob, gender FROM user_register INNER JOIN user_license ON user_register.user_id = user_license.user_id WHERE user_register.user_id = ?';
-  pool.query(query, [user_id], async (error, results, fields) => {
+  const fetch_password = 'SELECT user_pass FROM user_register WHERE user_id = ?';
+  const fetch_validity = 'SELECT validity from user_license WHERE user_id = ?';
+  const fetch_license_details = 'SELECT license, address_p, dob, gender FROM user_register INNER JOIN user_license ON user_register.user_id = user_license.user_id WHERE user_register.user_id = ?';
+  pool.query(fetch_password, [user_id], async (error, results1, fields) => {
     if (error) {
       console.error('Error while retrieving user password:', error);
       res.status(500).send('Internal Server Error');
     } else {
-      if (results.length > 0) {
-        const storedPassword = results[0].user_pass;
+      if (results1.length > 0) {
+        const storedPassword = results1[0].user_pass;
         // Use the retrieved hashed password value and the entered plaintext password to compare them using the bcrypt.compare function.
         const isMatch = await bcrypt.compare(password, storedPassword);
         Session = req.session;
@@ -212,6 +235,74 @@ app.post('/login', async (req, res) => {
           req.session.user = user_id;
           req.session.save();
           console.log('Login Success!');
+          var date;
+          pool.query(fetch_validity, [user_id], async (error, results2, fields) => {
+            if (error) {
+              console.error('Error while fetching Date:', error);
+            res.status(500).send('Internal Server Error');
+            } 
+            else{
+              if(results2.length == 1){
+                date = results2[0].validity;
+                formattedDate1 = date.toLocaleDateString('en-GB');
+                var currentDate = new Date();
+                currentDate = currentDate.toLocaleDateString('en-GB');
+                function getNumberOfDays(date1, date2) {
+                // Convert date strings to mm/dd/yyyy format
+                const [day1, month1, year1] = date1.split('/');
+                const [day2, month2, year2] = date2.split('/');
+                const newDate1 = new Date(`${month1}/${day1}/${year1}`);
+                const newDate2 = new Date(`${month2}/${day2}/${year2}`);
+            
+                // Calculate difference in days
+                const diffInTime = newDate2.getTime() - newDate1.getTime();
+                const diffInDays = Math.round(diffInTime / oneDay);
+                return diffInDays;
+              }
+          
+              noOfDays = getNumberOfDays(currentDate, formattedDate1);
+              displayMarquee = false;
+              expired = false;
+              const fetch_name = 'SELECT f_name,l_name FROM user_register where user_id = ?';
+              pool.query(fetch_name, [user_id], async (error, results3, fields) => {
+                data = JSON.parse(JSON.stringify(results3));
+                if(req.session)
+                {
+                  if (noOfDays <= 30 && noOfDays >= 1) {
+                    displayMarquee = true;
+                  }
+                  else if(noOfDays < 1){
+                    displayMarquee = true;
+                    expired = true;
+                  }
+                  pool.query(fetch_license_details, [user_id], async(error, results4, fields)=>{
+                    data2 = JSON.parse(JSON.stringify(results4));
+                    function formatDate(dateString) {
+                      const date = new Date(dateString);
+                      const day = date.getUTCDate().toString().padStart(2, '0'); // get day as string with leading zero if needed
+                      const month = (date.getUTCMonth() + 1).toString().padStart(2, '0'); // get month as string with leading zero if needed (month is zero-indexed)
+                      const year = date.getUTCFullYear().toString(); // get year as string
+                      return `${day}/${month}/${year}`;
+                    }
+                    data2[0].dob = formatDate(data2[0].dob);
+                    
+                    if(req.session){
+                      res.redirect('/dashboard');
+                    }
+                    else{
+                      res.redirect('/');
+                    }
+                  })
+                }
+                else
+                  res.redirect('/');
+              });
+            }
+            else if(Session.userid == ""){
+              res.send("Error");
+            }
+          }
+        })
         } else {
           console.log('Incorrect Password!');
           res.render("login1", { msg: true });
@@ -221,75 +312,6 @@ app.post('/login', async (req, res) => {
         res.render("login1", { msg: true });
       }
     }
-    var date;
-    pool.query(query2, [user_id], async (error, results, fields) => {
-      if (error) {
-        console.error('Error while fetching Date:', error);
-        res.status(500).send('Internal Server Error');
-      } 
-      else{
-        if(results.length == 1){
-          date = results[0].validity;
-          formattedDate1 = date.toLocaleDateString('en-GB');
-          var currentDate = new Date();
-          currentDate = currentDate.toLocaleDateString('en-GB');
-          function getNumberOfDays(date1, date2) {
-            // Convert date strings to mm/dd/yyyy format
-            const [day1, month1, year1] = date1.split('/');
-            const [day2, month2, year2] = date2.split('/');
-            const newDate1 = new Date(`${month1}/${day1}/${year1}`);
-            const newDate2 = new Date(`${month2}/${day2}/${year2}`);
-        
-            // Calculate difference in days
-            const diffInTime = newDate2.getTime() - newDate1.getTime();
-            const diffInDays = Math.round(diffInTime / oneDay);
-            return diffInDays;
-        }
-          
-          noOfDays = getNumberOfDays(currentDate, formattedDate1);
-          displayMarquee = false;
-          expired = false;
-          const name = 'SELECT f_name,l_name FROM user_register where user_id = ?';
-          pool.query(name, [user_id], async (error, results1, fields) => {
-            data = JSON.parse(JSON.stringify(results1));
-            if(req.session)
-            {
-              if (noOfDays <= 30 && noOfDays >= 1) {
-                displayMarquee = true;
-              }
-              else if(noOfDays < 1){
-                displayMarquee = true;
-                expired = true;
-              }
-              pool.query(query3, [user_id], async(error, results2, fields)=>{
-                data2 = JSON.parse(JSON.stringify(results2));
-                function formatDate(dateString) {
-                  const date = new Date(dateString);
-                  const day = date.getUTCDate().toString().padStart(2, '0'); // get day as string with leading zero if needed
-                  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0'); // get month as string with leading zero if needed (month is zero-indexed)
-                  const year = date.getUTCFullYear().toString(); // get year as string
-                  return `${day}/${month}/${year}`;
-                }
-                data2[0].dob = formatDate(data2[0].dob);
-                
-                if(req.session){
-                  res.redirect('/dashboard');
-                }
-                else{
-                  res.redirect('/');
-                }
-              })
-            }
-            else
-              res.redirect('/');
-          });
-        }
-        else if(Session.userid == ""){
-          res.send("Error");
-        }
-      }
-      
-    })
   });
 });
 
@@ -306,7 +328,6 @@ app.get('/rto_dashboard', async(req, res) =>{
   }
   else{
     res.redirect('/');
-    // res.render('index_after_logout');
   }
   
 });
@@ -354,6 +375,9 @@ app.get('/logout', (req, res) => {
     }
   });
 });
+
+
+
 
 // Start the server
 app.listen(3004, () => {

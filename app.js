@@ -75,6 +75,25 @@ app.get("/rto_index", (req,res) =>{
   res.render("rto_index" , {msg: true});
 })
 
+app.get('/vehicles', async(req, res) =>{
+  if(req.session.loggedin){
+    try{
+      pool.query('SELECT reg_plate, company, model, color FROM user_vehicle WHERE user_id = ?', [req.session.user], function(err, results){
+        if (err) throw err;
+        // Render the vehicles view with the results
+        res.render('vehicles', {vehicles: results});
+      })
+    }
+    catch(error){
+      res.status(500).send(error.message);
+    }
+  }
+  else{
+    res.redirect('/');
+  }
+  
+});
+
 var f_name, l_name, dob, age, gender, formattedDate1, formattedDate2
 app.post('/register1', async (req, res) => {
   f_name = req.body.fname
@@ -218,6 +237,7 @@ app.post('/login', async (req, res) => {
   const fetch_password = 'SELECT user_pass FROM user_register WHERE user_id = ?';
   const fetch_validity = 'SELECT validity from user_license WHERE user_id = ?';
   const fetch_license_details = 'SELECT license, address_p, dob, gender FROM user_register INNER JOIN user_license ON user_register.user_id = user_license.user_id WHERE user_register.user_id = ?';
+  const vehicle_count = '';
   pool.query(fetch_password, [user_id], async (error, results1, fields) => {
     if (error) {
       console.error('Error while retrieving user password:', error);

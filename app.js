@@ -75,6 +75,7 @@ app.get("/rto_index", (req,res) =>{
   res.render("rto_index" , {msg: true});
 })
 
+//route for vehicle owner to fetch list of his vehicles
 app.get('/vehicles', async(req, res) =>{
   if(req.session.loggedin){
     try{
@@ -91,8 +92,30 @@ app.get('/vehicles', async(req, res) =>{
   else{
     res.redirect('/');
   }
-  
 });
+
+//route for vehicle owner to view all of his pending fines.
+app.get('/view_fines', async(req, res)=>{
+  if(req.session.loggedin){
+    try{
+      pool.query('SELECT i.doi, uv.reg_plate, f.offence, f.fine_amount, DATE_FORMAT(i.doi, "%a %b %e %Y %T") AS formatted_doi FROM fines f JOIN impose_fine i ON f.fine_id = i.fine_id JOIN user_vehicle uv ON uv.reg_plate = i.veh_reg_no JOIN user_register ur ON ur.user_id = uv.user_id WHERE ur.user_id = ?', [req.session.user], function(err, result){
+        if(err) throw err;
+        // Calculate total fine
+        let total_fine = 0;
+        for(let i = 0; i < result.length; i++) {
+          total_fine += result[i].fine_amount;
+        }
+        res.render('view_fines', { fine: result, total_fine: total_fine });
+      })      
+    }
+    catch(error){
+      res.status(500).send(error.message);
+    }
+  }
+  else{
+    res.redirect('/');
+  }
+})
 
 var f_name, l_name, dob, age, gender, formattedDate1, formattedDate2
 app.post('/register1', async (req, res) => {
@@ -136,15 +159,14 @@ app.post('/register3', async (req, res) => {
   c_password = req.body.cpassword
   if(password === c_password){
     hash = await bcrypt.hash(password, 12)
-    const query = 'INSERT INTO user_register (f_name, l_name, dob, age, gender, phone, email, address_p, address_s, user_id, user_pass) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+    const query = 'INSERT INTO user_register (f_name, l_name, dob, age, gender, phone, email, address_p, address_s, user_id, user_pass) VALUES (?,?,?,?,?,?,?,?,?,?,?)';
     pool.query(query, [f_name, l_name, dob, age, gender, phone, email, address_p, address_s, user_id, hash], (error, results, fields) => {
       if (error) {
         console.error('Failed to create user:', error);
         res.status(500).send('Failed to create user');
       } else {
         console.log('User created successfully!');
-        // res.status(200).send('User created successfully!');
-        res.render("login1");
+        res.redirect("/login");
       }
     });
   }
@@ -164,22 +186,31 @@ var expired;
 
 // impose fines route for RTO officer
 app.post('/fine', async(req, res) =>{
-  const vehicle = req.body.regno;
-  const fine = req.body.fineid;
-  const doi = req.body.doi;
+  if(req.session.loggedin){
+    try{
+      const vehicle = req.body.regno;
+      const fine = req.body.fineid;
+      const doi = req.body.doi;
 
-  const query = 'INSERT INTO impose_fine (veh_reg_no, fine_id, doi) VALUES (?,?,?)';
+      const query = 'INSERT INTO impose_fine (veh_reg_no, fine_id, doi) VALUES (?,?,?)';
 
-  pool.query(query, [vehicle, fine, doi], (error, results, fields) => {
-    if (error) {
-      console.error('Failed to Add Fine:', error);
-      res.status(500).send('Failed to Add Fine');
-    } else {
-      console.log('Fine Added Successfully!');
-      res.redirect("rto_index");
+      pool.query(query, [vehicle, fine, doi], (error, results, fields) => {
+        if (error) {
+          console.error('Failed to Add Fine:', error);
+          res.status(500).send('Failed to Add Fine');
+        } else {
+          console.log('Fine Added Successfully!');
+          res.redirect("rto_index");
+        }
+      })
     }
-  })
-  
+    catch(error){
+      res.status(500).send(error.message);
+    }
+  }
+  else{
+    res.redirect('/');
+  }  
 });
 
 //login route for rto officer
@@ -369,7 +400,7 @@ app.get('/rto_logout', (req, res) => {
 app.get('/dashboard', async(req, res) => {
   if(req.session.loggedin){
     try{
-      res.render("index1", {noOfDays: noOfDays, displayMarquee: displayMarquee, expired: expired, fname:data[0].f_name, lname:data[0].l_name, validity: formattedDate1, license:data2[0].license, gender:data2[0].gender, dob:data2[0].dob, address:data2[0].address_p});
+      res.render("index1", {success: true, noOfDays: noOfDays, displayMarquee: displayMarquee, expired: expired, fname:data[0].f_name, lname:data[0].l_name, validity: formattedDate1, license:data2[0].license, gender:data2[0].gender, dob:data2[0].dob, address:data2[0].address_p});
     }
     catch(error){
       console.error(error);
@@ -395,8 +426,6 @@ app.get('/logout', (req, res) => {
     }
   });
 });
-
-
 
 
 // Start the server
